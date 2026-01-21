@@ -1,0 +1,45 @@
+# --------------------
+# Node.js
+# --------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# --------------------
+# Environment variables
+# --------------------
+.env
+.env.*
+!.env.example
+
+# --------------------
+# OS / Editor files
+# --------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# --------------------
+# Logs
+# --------------------
+logs/
+*.log
+
+# --------------------
+# Docker
+# --------------------
+docker-compose.override.yml
+
+# --------------------
+# Build / temp
+# --------------------
+dist/
+build/
+coverage/
+
+# --------------------
+# MongoDB data (if mounted locally later)
+# --------------------
+mongo-data/

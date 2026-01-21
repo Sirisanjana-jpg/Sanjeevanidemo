@@ -1,0 +1,109 @@
+version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9092:9092"
+    healthcheck:
+      test: ["CMD", "bash", "-c", "echo > /dev/tcp/localhost/9092"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  rest-proxy:
+    image: confluentinc/cp-kafka-rest:7.6.0
+    depends_on:
+      kafka:
+        condition: service_healthy
+    environment:
+      KAFKA_REST_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_REST_LISTENERS: http://0.0.0.0:8082
+    ports:
+      - "8082:8082"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8082/brokers || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongo:
+    image: mongo:6.0
+    environment:
+      MONGO_INITDB_DATABASE: sanjeevani
+    volumes:
+      - mongo-data:/data/db
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  producer:
+    build: .
+    command: ["node", "blood_producer.js"]
+    depends_on:
+      - rest-proxy
+    environment:
+      REST_PROXY: http://rest-proxy:8082
+      TOPIC: blood-requests
+      PORT: 3000
+    ports:
+      - "3000:3000"
+
+  consumer:
+    build: .
+    command: ["node", "blood_consumer.js"]
+    depends_on:
+      - rest-proxy
+      - mongo
+    environment:
+      REST_PROXY: http://rest-proxy:8082
+      MONGO_URI: mongodb://mongo:27017/sanjeevani
+      MONGO_DB: sanjeevani
+      MONGO_COLLECTION: blood_records
+    ports:
+      - "3001:3000"
+
+  notification_producer:
+    build: .
+    command: ["node", "notification_producer.js"]
+    depends_on:
+      - rest-proxy
+    environment:
+      REST_PROXY: http://rest-proxy:8082
+      TOPIC: notifications
+      PORT: 3100
+    ports:
+      - "3100:3100"
+
+  notification_consumer:
+    build: .
+    command: ["node", "notification_consumer.js"]
+    depends_on:
+      rest-proxy:
+        condition: service_healthy
+    environment:
+      REST_PROXY: http://rest-proxy:8082
+      PORT: 4000
+    ports:
+      - "4000:4000"
+    restart: on-failure
+
+volumes:
+  mongo-data:

@@ -1,0 +1,16 @@
+{
+  "name": "kafka-node-app",
+  "version": "1.0.0",
+  "main": "backend.js",
+  "scripts": {
+    "start": "node backend.js",
+    "start:blood_producer": "node blood_producer.js",
+    "start:blood_consumer": "node blood_consumer.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.0",
+    "express": "^4.19.2",
+    "uuid": "^9.0.0",
+    "mongodb": "^6.5.0"
+  }
+}
