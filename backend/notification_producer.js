@@ -73,3 +73,4 @@ app.get("/health", (req, res) => {
 app.listen(PORT, () => {
   console.log(`Notification Producer running on port ${PORT}`);
 });
+
