@@ -17,6 +17,8 @@ const REQUIRED_FIELDS = [
   "contact",
   "urgency",
   "timestamp",
+  "city",
+  "hospital",
 ];
 
 // 🔹 Validation function
@@ -70,6 +72,6 @@ app.get("/health", (req, res) => {
 });
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`Notification Producer running on port ${PORT}`);
 });

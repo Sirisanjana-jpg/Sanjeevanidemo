@@ -33,33 +33,41 @@ async function waitForRestProxy() {
  * Create Kafka REST consumer
  */
 async function createConsumer() {
-  // 1️⃣ Create consumer instance
-  await axios.post(
-    `${REST_PROXY}/consumers/${CONSUMER_GROUP}`,
-    {
-      name: CONSUMER_INSTANCE,
-      format: "json",           // must match producer
-      "auto.offset.reset": "earliest",
-    },
-    {
-      headers: {
-        "Content-Type": "application/vnd.kafka.v2+json",
+  try {
+    // Create consumer instance
+    await axios.post(
+      `${REST_PROXY}/consumers/${CONSUMER_GROUP}`,
+      {
+        name: CONSUMER_INSTANCE,
+        format: "json",
+        "auto.offset.reset": "earliest",
       },
-    }
-  );
+      {
+        headers: {
+          "Content-Type": "application/vnd.kafka.v2+json",
+        },
+      }
+    );
 
-  // 2️⃣ Subscribe to topic
-  await axios.post(
-    `${REST_PROXY}/consumers/${CONSUMER_GROUP}/instances/${CONSUMER_INSTANCE}/subscription`,
-    { topics: [TOPIC] },
-    {
-      headers: {
-        "Content-Type": "application/vnd.kafka.v2+json",
-      },
-    }
-  );
+    // Subscribe to topic
+    await axios.post(
+      `${REST_PROXY}/consumers/${CONSUMER_GROUP}/instances/${CONSUMER_INSTANCE}/subscription`,
+      { topics: [TOPIC] },
+      {
+        headers: {
+          "Content-Type": "application/vnd.kafka.v2+json",
+        },
+      }
+    );
 
-  console.log("Notification consumer created & subscribed to topic:", TOPIC);
+    console.log("Notification consumer created & subscribed to topic:", TOPIC);
+  } catch (err) {
+    // Ignore if already exists
+    if (err.response?.status !== 409) {
+      throw err;
+    }
+    console.log("Consumer already exists, continuing...");
+  }
 }
 
 /**
@@ -86,7 +94,15 @@ async function pollKafka() {
       console.log(`Received ${res.data.length} notifications`);
     }
   } catch (err) {
-    console.error("Polling error:", err.response?.data || err.message);
+    const errorData = err.response?.data;
+
+    console.error("Polling error:", errorData || err.message);
+
+    // 🔥 AUTO RECOVERY if consumer lost
+    if (errorData?.error_code === 40403) {
+      console.log("Consumer not found. Recreating...");
+      await createConsumer();
+    }
   }
 }
 
@@ -124,6 +140,7 @@ async function start() {
   try {
     await createConsumer();
     setInterval(pollKafka, 3000); // poll every 3s
+
     app.listen(PORT, () =>
       console.log(`Notification Consumer running on port ${PORT}`)
     );
